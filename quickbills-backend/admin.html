@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuickBills Admin Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .login-form {
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #666;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .user-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .user-table th, .user-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .user-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+        .status-active {
+            color: green;
+            font-weight: bold;
+        }
+        .status-inactive {
+            color: red;
+            font-weight: bold;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        .btn-small {
+            padding: 5px 10px;
+            font-size: 14px;
+        }
+        .btn-danger {
+            background: #dc3545;
+        }
+        .btn-success {
+            background: #28a745;
+        }
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+        .success {
+            color: green;
+            margin-top: 10px;
+        }
+        #dashboard {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>QuickBills Admin Dashboard</h1>
+        
+        <div id="loginSection">
+            <div class="login-form">
+                <h2>Admin Login</h2>
+                <div class="form-group">
+                    <label>API URL</label>
+                    <input type="text" id="apiUrl" placeholder="https://your-app.railway.app" value="http://localhost:3000">
+                </div>
+                <div class="form-group">
+                    <label>Admin Token</label>
+                    <input type="password" id="adminToken" placeholder="Enter admin token">
+                </div>
+                <button onclick="login()">Login</button>
+                <div id="loginError" class="error"></div>
+            </div>
+        </div>
+
+        <div id="dashboard">
+            <button onclick="logout()" style="float: right; background: #6c757d;">Logout</button>
+            <h2>User Management</h2>
+            <button onclick="loadUsers()" style="margin-bottom: 20px;">Refresh Users</button>
+            
+            <table class="user-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Status</th>
+                        <th>Access Until</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="userTableBody">
+                    <tr>
+                        <td colspan="7" style="text-align: center;">Loading...</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div id="message" style="margin-top: 20px;"></div>
+        </div>
+    </div>
+
+    <script>
+        let apiBase = '';
+        let adminToken = '';
+
+        function login() {
+            apiBase = document.getElementById('apiUrl').value;
+            adminToken = document.getElementById('adminToken').value;
+            
+            if (!apiBase || !adminToken) {
+                document.getElementById('loginError').textContent = 'Please enter API URL and admin token';
+                return;
+            }
+
+            // Test the connection
+            fetch(`${apiBase}/api/admin/users`, {
+                headers: {
+                    'Authorization': `Bearer ${adminToken}`
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    document.getElementById('loginSection').style.display = 'none';
+                    document.getElementById('dashboard').style.display = 'block';
+                    loadUsers();
+                } else {
+                    throw new Error('Invalid admin token');
+                }
+            })
+            .catch(error => {
+                document.getElementById('loginError').textContent = error.message;
+            });
+        }
+
+        function logout() {
+            document.getElementById('loginSection').style.display = 'block';
+            document.getElementById('dashboard').style.display = 'none';
+            document.getElementById('adminToken').value = '';
+        }
+
+        function loadUsers() {
+            fetch(`${apiBase}/api/admin/users`, {
+                headers: {
+                    'Authorization': `Bearer ${adminToken}`
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const tbody = document.getElementById('userTableBody');
+                tbody.innerHTML = '';
+                
+                if (data.users && data.users.length > 0) {
+                    data.users.forEach(user => {
+                        const row = tbody.insertRow();
+                        row.innerHTML = `
+                            <td>${user.id}</td>
+                            <td>${user.username}</td>
+                            <td>${user.email}</td>
+                            <td class="${user.is_active ? 'status-active' : 'status-inactive'}">
+                                ${user.is_active ? 'Active' : 'Inactive'}
+                            </td>
+                            <td>${user.access_until ? new Date(user.access_until).toLocaleDateString() : 'Never'}</td>
+                            <td>${new Date(user.created_at).toLocaleDateString()}</td>
+                            <td class="action-buttons">
+                                <button class="btn-small btn-success" onclick="extendAccess(${user.id})">Extend 30d</button>
+                                <button class="btn-small ${user.is_active ? 'btn-danger' : 'btn-success'}" 
+                                        onclick="toggleStatus(${user.id}, ${!user.is_active})">
+                                    ${user.is_active ? 'Disable' : 'Enable'}
+                                </button>
+                            </td>
+                        `;
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No users found</td></tr>';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading users:', error);
+                document.getElementById('message').innerHTML = '<div class="error">Error loading users</div>';
+            });
+        }
+
+        function extendAccess(userId) {
+            fetch(`${apiBase}/api/admin/users/${userId}/access`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${adminToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ accessDays: 30 })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('message').innerHTML = '<div class="success">Access extended successfully</div>';
+                loadUsers();
+            })
+            .catch(error => {
+                document.getElementById('message').innerHTML = '<div class="error">Error extending access</div>';
+            });
+        }
+
+        function toggleStatus(userId, isActive) {
+            fetch(`${apiBase}/api/admin/users/${userId}/access`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${adminToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ isActive })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('message').innerHTML = '<div class="success">Status updated successfully</div>';
+                loadUsers();
+            })
+            .catch(error => {
+                document.getElementById('message').innerHTML = '<div class="error">Error updating status</div>';
+            });
+        }
+    </script>
+</body>
+</html>
